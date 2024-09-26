@@ -6,7 +6,8 @@ alpha = 100
 beta = 100
 gamma = 100
 global x, y, w, h
-global img_without_crop, img
+global img_without_crop, img, selected_color
+selected_color = None
 
 def crop(input_image, _x, _y, _w, _h):
     process_ = input_image.copy()
@@ -95,12 +96,14 @@ class ImageConverter(wx.Frame):
         self.crop_choice = wx.RadioBox(panel, label="Crop", choices=['No crop', 'Save crop'])
         vbox.Add(self.crop_choice, flag=wx.ALL, border=1)
         # 色彩格式
-        self.color_choice = wx.RadioBox(
-            panel, label="Choose color format:", choices=[
-                'Same', 'BGR(555)', 'BGR(565)','RGB', 'GRAY', 'HSV', 'HSV(Full)', 'HLS', 'HLS(Full)','YUV', 'LAB'
-            ]
-        )
-        vbox.Add(self.color_choice, flag=wx.ALL, border=1)
+        vbox.Add(wx.StaticText(panel, label="Please choose a color format"), flag=wx.ALL, border=5)
+        color_format_list = [
+            'Same', 'BGR(555)', 'BGR(565)','RGB', 'GRAY', 'HSV', 'HSV(Full)', 'HLS', 'HLS(Full)','YUV','YUV(4:2:0)',
+            'YUV(4:2:2)','LAB'
+        ]
+        lb = wx.ListBox(panel, choices=color_format_list, style=wx.LB_EXTENDED)
+        self.Bind(wx.EVT_LISTBOX, self.color_format_lb, lb)
+        vbox.Add(lb, flag=wx.ALL, border=5)
         # 转换按钮
         convert_button = wx.Button(panel, label="Convert")
         convert_button.Bind(wx.EVT_BUTTON, self.on_convert)
@@ -174,8 +177,14 @@ class ImageConverter(wx.Frame):
         cv2.createTrackbar("Width", "Crop", w, img_without_crop.shape[1], w_track_bar)
         cv2.createTrackbar("Height", "Crop", h, img_without_crop.shape[0], h_track_bar)
 
+    def color_format_lb(self, event):
+        global selected_color
+        selected_color = event.GetEventObject()
+        if selected_color == 'Same':
+            selected_color = None
+
     def on_convert(self, event):
-        global img, x, y ,w ,h
+        global img, x, y ,w ,h, selected_color
         #获取用户的选择
         load_image(self.input_path.GetValue())
         save_path = self.output_path.GetValue()
@@ -184,7 +193,6 @@ class ImageConverter(wx.Frame):
             wx.MessageBox('Please enter output path and name','Error', wx.OK | wx.ICON_ERROR)
             return
         selected_format = self.output_format.GetStringSelection()
-        selected_color = self.color_choice.GetStringSelection()
         #裁剪
         if self.crop_choice.getValue() != 'No crop':    cropped_img = img[y:y + h, x:x + w]
         else:   cropped_img = img
@@ -201,9 +209,11 @@ class ImageConverter(wx.Frame):
             'HLS': cv2.COLOR_BGR2HLS,
             'HLS(Full)': cv2.COLOR_BGR2HLS_FULL,
             'YUV': cv2.COLOR_BGR2YUV,
+            'YUV(4:2:0)': cv2.COLOR_BGR2YUV_I420,
+            'YUV(4:2:2)': cv2.COLOR_BGR2YUV_Y422,
             'LAB': cv2.COLOR_BGR2LAB,
         }
-        if selected_color != 'Same':
+        if selected_color is not None:
             output_img = cv2.cvtColor(mixed_img, color_format_dict[selected_color])
         else: output_img = mixed_img
         # 确定输出路径
