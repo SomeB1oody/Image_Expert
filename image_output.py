@@ -101,7 +101,7 @@ class ImageConverter(wx.Frame):
             'Same', 'BGR(555)', 'BGR(565)','RGB', 'GRAY', 'HSV', 'HSV(Full)', 'HLS', 'HLS(Full)','YUV','YUV(4:2:0)',
             'YUV(4:2:2)','LAB'
         ]
-        lb = wx.ListBox(panel, choices=color_format_list, style=wx.LB_EXTENDED)
+        lb = wx.ListBox(panel, choices=color_format_list, style=wx.LB_SINGLE)
         self.Bind(wx.EVT_LISTBOX, self.color_format_lb, lb)
         vbox.Add(lb, flag=wx.ALL, border=5)
         # 转换按钮
