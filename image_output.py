@@ -8,17 +8,18 @@ gamma = 100
 global x, y, w, h
 global img_without_crop, img, selected_color
 selected_color = None
-
+# Function to crop the image and show the cropped rectangle
 def crop(input_image, _x, _y, _w, _h):
     process_ = input_image.copy()
-    # 确保矩形框的边界在图像内
+    # Ensure the rectangle does not exceed image boundaries
     if _x + _w > input_image.shape[1]:
         _w = input_image.shape[1] - _x
     if _y + _h > input_image.shape[0]:
         _h = input_image.shape[0] - _y
+    # Draw the rectangle on the image
     cv2.rectangle(process_, (_x, _y), (_x+_w, _y+_h), (0, 0, 255), 1)
     cv2.imshow("Crop", process_)
-
+# Function to adjust brightness, contrast (for crop function)
 def mix_for_crop(input_image):
     global alpha, beta, gamma
     _process = cv2.convertScaleAbs(input_image, alpha=alpha / 100.0, beta=beta - 100)
@@ -28,7 +29,7 @@ def mix_for_crop(input_image):
         look_up_table[index] = np.uint8(value)
     output = cv2.LUT(input_image, look_up_table)
     return output
-
+# Function to adjust brightness, contrast (for other functions)
 def mix_for_others(input_image, _alpha_, _beta_, _gamma_, window_name):
     look_up_table = np.zeros((256,), dtype=np.uint8)
     for index in range(256):
@@ -56,22 +57,22 @@ class ImageConverter(wx.Frame):
 
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 输入图片路径
+        # Input image path
         vbox.Add(wx.StaticText(panel, label="Input image path:"), flag=wx.ALL, border=5)
         vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
         self.input_path = wx.TextCtrl(panel)
         vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
-        #输入图片输出名称
+        # Output image path
         vbox.Add(wx.StaticText(panel, label="Output image name:(no file suffix)"), flag=wx.ALL, border=5)
         self.output_name = wx.TextCtrl(panel)
         vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
-        #输入图片输出位置
+        # Output image name
         vbox.Add(wx.StaticText(panel, label="Output image path:"), flag=wx.ALL, border=5)
         vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
         self.output_path = wx.TextCtrl(panel)
         vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
 
-        # 输出格式单选框
+        # Output image format
         self.output_format = wx.RadioBox(
             panel, label="Choose output format:", choices=[
                 '.jpg', '.jpeg', '.png', '.tiff',
@@ -79,23 +80,23 @@ class ImageConverter(wx.Frame):
             ]
         )
         vbox.Add(self.output_format, flag=wx.ALL, border=5)
-        #亮度与对比度调整
+        # Brightness&Contrast adjustment button
         brightness_button = wx.Button(panel, label="Contrast and Brightness Adjustment")
         vbox.Add(wx.StaticText(panel,
         label="Close the window that pops out to save change in these button down HERE:"), flag=wx.ALL, border=5)
         brightness_button.Bind(wx.EVT_BUTTON, self.brightness_and_contrast_adjustment)
         vbox.Add(brightness_button, flag=wx.ALL, border=5)
-        #伽马纠正
+        # Gammma correction button
         gamma_button = wx.Button(panel, label="Gamma Correction")
         gamma_button.Bind(wx.EVT_BUTTON, self._gamma_correction_)
         vbox.Add(gamma_button, flag=wx.ALL, border=5)
-        #裁剪
+        # Crop Button
         crop_button = wx.Button(panel, label="Crop")
         crop_button.Bind(wx.EVT_BUTTON, self._crop_)
         vbox.Add(crop_button, flag=wx.ALL, border=5)
         self.crop_choice = wx.RadioBox(panel, label="Crop", choices=['No crop', 'Save crop'])
         vbox.Add(self.crop_choice, flag=wx.ALL, border=1)
-        # 色彩格式
+        # Output color format
         vbox.Add(wx.StaticText(panel, label="Please choose a color format"), flag=wx.ALL, border=5)
         color_format_list = [
             'Same', 'BGR(555)', 'BGR(565)','RGB', 'GRAY', 'HSV', 'HSV(Full)', 'HLS', 'HLS(Full)','YUV','YUV(4:2:0)',
@@ -104,15 +105,15 @@ class ImageConverter(wx.Frame):
         lb = wx.ListBox(panel, choices=color_format_list, style=wx.LB_SINGLE)
         self.Bind(wx.EVT_LISTBOX, self.color_format_lb, lb)
         vbox.Add(lb, flag=wx.ALL, border=5)
-        # 转换按钮
+        # Convert button
         convert_button = wx.Button(panel, label="Convert")
         convert_button.Bind(wx.EVT_BUTTON, self.on_convert)
         vbox.Add(convert_button, flag=wx.ALL, border=5)
 
-        # 设置面板的布局管理器
+        
         panel.SetSizer(vbox)
 
-        # 触发布局更新
+        # Refresh
         panel.Layout()
 
     def brightness_and_contrast_adjustment(self, event):
@@ -185,7 +186,6 @@ class ImageConverter(wx.Frame):
 
     def on_convert(self, event):
         global img, x, y ,w ,h, selected_color
-        #获取用户的选择
         load_image(self.input_path.GetValue())
         save_path = self.output_path.GetValue()
         save_name = self.output_name.GetValue()
@@ -193,12 +193,12 @@ class ImageConverter(wx.Frame):
             wx.MessageBox('Please enter output path and name','Error', wx.OK | wx.ICON_ERROR)
             return
         selected_format = self.output_format.GetStringSelection()
-        #裁剪
+        #crop first
         if self.crop_choice.getValue() != 'No crop':    cropped_img = img[y:y + h, x:x + w]
         else:   cropped_img = img
         #Brightness Contrast Gamma
         mixed_img = mix_for_crop(cropped_img)
-        #转换色彩格式
+        #make a dictionary for color format
         color_format_dict = {
             'BGR(555)': cv2.COLOR_BGR2BGR555,
             'BGR(565)': cv2.COLOR_BGR2BGR565,
@@ -216,10 +216,10 @@ class ImageConverter(wx.Frame):
         if selected_color is not None:
             output_img = cv2.cvtColor(mixed_img, color_format_dict[selected_color])
         else: output_img = mixed_img
-        # 确定输出路径
+        # output path (path + name + format)
         output_ = f"{save_path}{save_name}{selected_format}"
 
-        # 保存输出图片
+        # save image
         try:
             cv2.imwrite(output_, output_img)
             wx.MessageBox(f'Image saved as {output_}', 'Success',
