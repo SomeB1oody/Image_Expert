@@ -1,3 +1,7 @@
+#Author: Stan Yin
+#GitHub Name: SomeB1oody
+#This project is based on CC 4.0 BY, please mention my name if you use it.
+#This project requires opencv and wxWidgets.
 import wx
 import cv2 as cv
 
@@ -286,21 +290,21 @@ class ColorMaster(wx.Frame):
         input_format = event.GetEventObject().GetStringSelection()
 
         # 如果选择的是BGR，更新拓展输入格式选择框
-        if input_format == 'BGR':   input_color_format_list_additional = ['BGR(888)', 'BGR(555)', 'BGR(565)']
-        elif input_format == 'BGRA':    input_color_format_list_additional = ['BGRA']
-        elif input_format == 'RGB':     input_color_format_list_additional = ['RGB']
-        elif input_format == 'M_RGBA':    input_color_format_list_additional = ['M_RGBA']
-        elif input_format == 'RGBA':    input_color_format_list_additional = ['RGBA']
-        elif input_format == 'HSV':     input_color_format_list_additional = ['HSV', 'HSV(Full Range)']
-        elif input_format == 'HLS':     input_color_format_list_additional = ['HLS', 'HLS(Full Range)']
-        elif input_format == 'YUV':
-            input_color_format_list_additional = [
-                '4:2:0', '4:2:0 I420', '4:2:0 NV12', '4:2:0 NV21', '4:2:0 YV12','4:2:0 Planar',
+        match input_format:
+            case 'BGR': input_color_format_list_additional = ['BGR(888)', 'BGR(555)', 'BGR(565)']
+            case 'BGRA': input_color_format_list_additional = ['BGRA']
+            case 'RGB': input_color_format_list_additional = ['RGB']
+            case 'RGBA': input_color_format_list_additional = ['RGBA']
+            case 'M_RGBA': input_color_format_list_additional = ['M_RGBA']
+            case 'HSV': input_color_format_list_additional = ['HSV', 'HSV(Full Range)']
+            case 'HLS': input_color_format_list_additional = ['HLS', 'HLS(Full Range)']
+            case 'YUV': input_color_format_list_additional = [
+                '4:2:0 I420', '4:2:0 NV12', '4:2:0 NV21', '4:2:0 YV12','4:2:0 Planar',
                 '4:2:0 SP', '4:2:2 Y422', '4:2:2 UYNV', '4:4:4'
             ]
-        elif input_format == 'YCrCb':   input_color_format_list_additional = ['YCrCb']
-        elif input_format == 'Grayscale':   input_color_format_list_additional = ['Grayscale']
-        else:   input_color_format_list_additional = []
+            case 'YCrCb': input_color_format_list_additional = ['YCrCb']
+            case 'GrayScale': input_color_format_list_additional = ['GrayScale']
+            case _: input_color_format_list_additional = []
         self.lb_related_input.Set(input_color_format_list_additional)
 
         # 更新输出色彩格式列表
@@ -346,31 +350,32 @@ class ColorMaster(wx.Frame):
             self.warning_text.SetLabel(
                 "Attention: Translating to BGR first has more choices on output color format, but there is a loss of image information")
 
-            if input_format_additional == 'BGR(555)' or input_format_additional == 'BGR(565)':
-                output_color_format_list_basic = ['BGR', 'RGB', 'BGRA', 'RGBA', 'GrayScale']
-            elif input_format_additional == 'BGRA':
-                output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'RGBA', 'YUV']
-            elif input_format_additional == 'RGB':
-                output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'HSV', 'HLS', 'YUV', 'LAB']
-            elif input_format_additional == 'RGBA':
-                output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'M_RGBA', 'YUV', 'BGRA']
-            elif input_format_additional == 'M_RGBA':
-                output_color_format_list_basic = ['RGBA']
-            elif input_format_additional == 'GrayScale':
-                output_color_format_list_basic = ['BGR', 'RGB', 'BGRA', 'RGBA']
-            elif input_format_additional == 'HSV' or input_format_additional == 'HSV(Full Range)':
-                output_color_format_list_basic = ['BGR', 'RGB']
-            elif input_format_additional == 'HLS' or input_format_additional == 'HLS(Full Range)':
-                output_color_format_list_basic = ['BGR', 'RGB']
-            elif input_format_additional in additional_format_list:
-                output_color_format_list_basic = ['BGR', 'RGB', 'BGRA', 'RGBA', 'GrayScale']
-                if input_format_additional == '4:4:4':
-                    output_color_format_list_basic.remove('BGRA')
-                    output_color_format_list_basic.remove('RGBA')
-            elif input_format_additional == 'YCrCb':
-                output_color_format_list_basic = ['BGR', 'RGB']
-            else:
-                output_color_format_list_basic = []
+            match input_format_additional:
+                case 'BGR(555)' | 'BGR(565)':
+                    output_color_format_list_basic = ['BGR', 'RGB', 'BGRA', 'RGBA', 'GrayScale']
+                case 'BGRA':
+                    output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'RGBA', 'YUV']
+                case 'RGB':
+                    output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'HSV', 'HLS', 'YUV', 'LAB']
+                case 'RGBA':
+                    output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'M_RGBA', 'YUV', 'BGRA']
+                case 'M_RGBA':
+                    output_color_format_list_basic = ['RGBA']
+                case 'GrayScale':
+                    output_color_format_list_basic = ['BGR', 'RGB', 'BGRA', 'RGBA']
+                case 'HSV' | 'HSV(Full Range)':
+                    output_color_format_list_basic = ['BGR', 'RGB']
+                case 'HLS' | 'HLS(Full Range)':
+                    output_color_format_list_basic = ['BGR', 'RGB']
+                case _ if input_format_additional in additional_format_list:
+                    output_color_format_list_basic = ['BGR', 'RGB', 'BGRA', 'RGBA', 'GrayScale']
+                    if input_format_additional == '4:4:4':
+                        output_color_format_list_basic.remove('BGRA')
+                        output_color_format_list_basic.remove('RGBA')
+                case 'YCrCb':
+                    output_color_format_list_basic = ['BGR', 'RGB']
+                case _:
+                    output_color_format_list_basic = []
         self.lb_output.Set(output_color_format_list_basic)
         unchanged_list = output_color_format_list_basic
 
@@ -380,24 +385,24 @@ class ColorMaster(wx.Frame):
         output_format_basic = event.GetEventObject().GetStringSelection()
 
         # 根据左侧选择框的选择更新拓展选择框的内容
-        if output_format_basic == 'BGR':    additional_format_list = ['BGR(888)', 'BGR(565)', 'BGR(555)']
-        elif output_format_basic == 'RGB':  additional_format_list = ['RGB']
-        elif output_format_basic == 'LAB':  additional_format_list = ['LAB']
-        elif output_format_basic == 'HSV':  additional_format_list = ['HSV', 'HSV(Full Range)']
-        elif output_format_basic == 'HLS':  additional_format_list = ['HLS', 'HLS(Full Range)']
-        elif output_format_basic == 'RGBA': additional_format_list = ['RGBA']
-        elif output_format_basic == 'M_RGBA': additional_format_list = ['M_RGBA']
-        elif output_format_basic == 'BGRA': additional_format_list = ['BGRA']
-        elif output_format_basic == 'YCrCb':additional_format_list = ['YCrCb']
-        elif output_format_basic == 'YUV':
-            additional_format_list = [
+        match output_format_basic:
+            case 'BGR': additional_format_list = ['BGR(888)', 'BGR(565)', 'BGR(555)']
+            case 'RGB':  additional_format_list = ['RGB']
+            case 'LAB':  additional_format_list = ['LAB']
+            case 'HSV':  additional_format_list = ['HSV', 'HSV(Full Range)']
+            case 'HLS':  additional_format_list = ['HLS', 'HLS(Full Range)']
+            case 'RGBA': additional_format_list = ['RGBA']
+            case 'M_RGBA': additional_format_list = ['M_RGBA']
+            case 'BGRA': additional_format_list = ['BGRA']
+            case 'YCrCb':additional_format_list = ['YCrCb']
+            case 'YUV':
+                additional_format_list = [
                 '4:2:0 I420', '4:2:0 YV12', '4:2:0 IYUV', '4:2:2 Y422', '4:2:2 UYNV', '4:2:2 YUY2', '4:2:2 YVYU',
-                '4:2:2 YVYU', '4:4:4', 'YUNV'
-            ]
-            if input_format_additional == 'RGBA': additional_format_list.remove('4:4:4')
-            if input_format_additional == 'BGRA': additional_format_list.remove('4:4:4')
-        elif output_format_basic == 'GrayScale':    additional_format_list = ['GrayScale']
-        else:   additional_format_list = []
+                '4:2:2 YVYU', '4:4:4', 'YUNV']
+                if input_format_additional == 'RGBA': additional_format_list.remove('4:4:4')
+                if input_format_additional == 'BGRA': additional_format_list.remove('4:4:4')
+            case 'GrayScale':    additional_format_list = ['GrayScale']
+            case _: additional_format_list = []
         if input_format_additional in additional_format_list:
             additional_format_list.remove(input_format_additional)
         # 更新拓展选择框
