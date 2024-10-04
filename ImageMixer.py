@@ -1,43 +1,27 @@
-import wx
+#Author: Stan Yin
+#GitHub Name: SomeB1oody
+#This project is based on CC 4.0 BY, please mention my name if you use it.
+#This project requires opencv and wxWidgets.
 import cv2
 import numpy as np
+import wx
+
 global alpha, beta, gamma
 alpha = 100
 beta = 100
 gamma = 100
-global x, y, w, h
 global img_without_crop, img, selected_color
 selected_color = None
-# Function to crop the image and show the cropped rectangle
-def crop(input_image, _x, _y, _w, _h):
-    process_ = input_image.copy()
-    # Ensure the rectangle does not exceed image boundaries
-    if _x + _w > input_image.shape[1]:
-        _w = input_image.shape[1] - _x
-    if _y + _h > input_image.shape[0]:
-        _h = input_image.shape[0] - _y
-    # Draw the rectangle on the image
-    cv2.rectangle(process_, (_x, _y), (_x+_w, _y+_h), (0, 0, 255), 1)
-    cv2.imshow("Crop", process_)
-# Function to adjust brightness, contrast (for crop function)
-def mix_for_crop(input_image):
-    global alpha, beta, gamma
-    _process = cv2.convertScaleAbs(input_image, alpha=alpha / 100.0, beta=beta - 100)
-    look_up_table = np.zeros((256,), dtype=np.uint8)
-    for index in range(256):
-        value = np.clip((index / 255.0) ** (gamma / 100.0) * 255.0, 0, 255)
-        look_up_table[index] = np.uint8(value)
-    output = cv2.LUT(input_image, look_up_table)
-    return output
-# Function to adjust brightness, contrast (for other functions)
-def mix_for_others(input_image, _alpha_, _beta_, _gamma_, window_name):
+
+def mixer(input_image, _alpha_, _beta_, _gamma_, window_name, flag):
     look_up_table = np.zeros((256,), dtype=np.uint8)
     for index in range(256):
         value = np.clip((index / 255.0) ** (gamma / 100.0) * 255.0, 0, 255)
         look_up_table[index] = np.uint8(value)
     arg1 = cv2.LUT(input_image, look_up_table)
     arg2 = cv2.convertScaleAbs(arg1, alpha=_alpha_, beta=_beta_)
-    cv2.imshow(window_name, arg2)
+    if flag: cv2.imshow(window_name, arg2)
+    else: return arg2
 
 def load_image(path):
     global img
@@ -57,22 +41,22 @@ class ImageConverter(wx.Frame):
 
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # Input image path
+        # 输入图片路径
         vbox.Add(wx.StaticText(panel, label="Input image path:"), flag=wx.ALL, border=5)
         vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
         self.input_path = wx.TextCtrl(panel)
         vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
-        # Output image path
+        #输入图片输出名称
         vbox.Add(wx.StaticText(panel, label="Output image name:(no file suffix)"), flag=wx.ALL, border=5)
         self.output_name = wx.TextCtrl(panel)
         vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
-        # Output image name
+        #输入图片输出位置
         vbox.Add(wx.StaticText(panel, label="Output image path:"), flag=wx.ALL, border=5)
         vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
         self.output_path = wx.TextCtrl(panel)
         vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
 
-        # Output image format
+        # 输出格式单选框
         self.output_format = wx.RadioBox(
             panel, label="Choose output format:", choices=[
                 '.jpg', '.jpeg', '.png', '.tiff',
@@ -80,23 +64,17 @@ class ImageConverter(wx.Frame):
             ]
         )
         vbox.Add(self.output_format, flag=wx.ALL, border=5)
-        # Brightness&Contrast adjustment button
+        #亮度与对比度调整
         brightness_button = wx.Button(panel, label="Contrast and Brightness Adjustment")
         vbox.Add(wx.StaticText(panel,
         label="Close the window that pops out to save change in these button down HERE:"), flag=wx.ALL, border=5)
         brightness_button.Bind(wx.EVT_BUTTON, self.brightness_and_contrast_adjustment)
         vbox.Add(brightness_button, flag=wx.ALL, border=5)
-        # Gammma correction button
+        #伽马纠正
         gamma_button = wx.Button(panel, label="Gamma Correction")
         gamma_button.Bind(wx.EVT_BUTTON, self._gamma_correction_)
         vbox.Add(gamma_button, flag=wx.ALL, border=5)
-        # Crop Button
-        crop_button = wx.Button(panel, label="Crop")
-        crop_button.Bind(wx.EVT_BUTTON, self._crop_)
-        vbox.Add(crop_button, flag=wx.ALL, border=5)
-        self.crop_choice = wx.RadioBox(panel, label="Crop", choices=['No crop', 'Save crop'])
-        vbox.Add(self.crop_choice, flag=wx.ALL, border=1)
-        # Output color format
+        # 色彩格式
         vbox.Add(wx.StaticText(panel, label="Please choose a color format"), flag=wx.ALL, border=5)
         color_format_list = [
             'Same', 'BGR(555)', 'BGR(565)','RGB', 'GRAY', 'HSV', 'HSV(Full)', 'HLS', 'HLS(Full)','YUV','YUV(4:2:0)',
@@ -105,15 +83,15 @@ class ImageConverter(wx.Frame):
         lb = wx.ListBox(panel, choices=color_format_list, style=wx.LB_SINGLE)
         self.Bind(wx.EVT_LISTBOX, self.color_format_lb, lb)
         vbox.Add(lb, flag=wx.ALL, border=5)
-        # Convert button
+        # 转换按钮
         convert_button = wx.Button(panel, label="Convert")
         convert_button.Bind(wx.EVT_BUTTON, self.on_convert)
         vbox.Add(convert_button, flag=wx.ALL, border=5)
 
-        
+        # 设置面板的布局管理器
         panel.SetSizer(vbox)
 
-        # Refresh
+        # 触发布局更新
         panel.Layout()
 
     def brightness_and_contrast_adjustment(self, event):
@@ -122,14 +100,14 @@ class ImageConverter(wx.Frame):
         def alpha_track_bar(alpha_):
             global alpha, img
             alpha = alpha_
-            mix_for_others(img, alpha / 100.0, beta - 100, gamma / 100.0,
-            "Brightness and Contrast")
+            mixer(img, alpha / 100.0, beta - 100, gamma / 100.0,
+            "Brightness and Contrast", True)
 
         def beta_track_bar(beta_):
             global beta, img
             beta = beta_
-            mix_for_others(img, alpha / 100.0, beta - 100, gamma / 100.0,
-            "Brightness and Contrast")
+            mixer(img, alpha / 100.0, beta - 100, gamma / 100.0,
+            "Brightness and Contrast", True)
 
         cv2.namedWindow("Brightness and Contrast")
         cv2.createTrackbar("Contrast", "Brightness and Contrast",
@@ -143,40 +121,10 @@ class ImageConverter(wx.Frame):
         def gamma_track_bar(_gamma):
             global alpha, beta, gamma
             gamma = _gamma
-            mix_for_others(img, alpha / 100.0, beta - 100, gamma / 100.0,
+            mixer(img, alpha / 100.0, beta - 100, gamma / 100.0,
             "Gamma Correction")
         cv2.namedWindow("Gamma Correction")
         cv2.createTrackbar("Gamma", "Gamma Correction", gamma, 200, gamma_track_bar)
-
-    def _crop_(self, event):
-        load_image(self.input_path.GetValue())
-        global x, y ,w ,h, img_without_crop, img
-        img_without_crop = mix_for_crop(img)
-        x = img_without_crop.shape[1] // 2
-        y = img_without_crop.shape[0] // 2
-        w = img_without_crop.shape[1] // 3
-        h = img_without_crop.shape[0] // 3
-        def x_track_bar(x_):
-            global x, y, w, h
-            x = x_
-            crop(img_without_crop, x, y, w, h)
-        def y_track_bar(y_):
-            global x, y, w, h
-            y = y_
-            crop(img_without_crop, x, y, w, h)
-        def h_track_bar(h_):
-            global x, y, w, h
-            h = h_
-            crop(img_without_crop, x, y, w, h)
-        def w_track_bar(w_):
-            global x, y, h, w
-            w = w_
-            crop(img_without_crop, x, y, w, h)
-        cv2.namedWindow("Crop")
-        cv2.createTrackbar("X", "Crop", x, img_without_crop.shape[1], x_track_bar)
-        cv2.createTrackbar("Y", "Crop", y, img_without_crop.shape[0], y_track_bar)
-        cv2.createTrackbar("Width", "Crop", w, img_without_crop.shape[1], w_track_bar)
-        cv2.createTrackbar("Height", "Crop", h, img_without_crop.shape[0], h_track_bar)
 
     def color_format_lb(self, event):
         global selected_color
@@ -185,7 +133,8 @@ class ImageConverter(wx.Frame):
             selected_color = None
 
     def on_convert(self, event):
-        global img, x, y ,w ,h, selected_color
+        global img, selected_color, alpha, beta, gamma
+        #获取用户的选择
         load_image(self.input_path.GetValue())
         save_path = self.output_path.GetValue()
         save_name = self.output_name.GetValue()
@@ -193,12 +142,9 @@ class ImageConverter(wx.Frame):
             wx.MessageBox('Please enter output path and name','Error', wx.OK | wx.ICON_ERROR)
             return
         selected_format = self.output_format.GetStringSelection()
-        #crop first
-        if self.crop_choice.getValue() != 'No crop':    cropped_img = img[y:y + h, x:x + w]
-        else:   cropped_img = img
         #Brightness Contrast Gamma
-        mixed_img = mix_for_crop(cropped_img)
-        #make a dictionary for color format
+        mixed_img = mixer(img, alpha / 100.0, beta - 100, gamma / 100.0, "", False)
+        #转换色彩格式
         color_format_dict = {
             'BGR(555)': cv2.COLOR_BGR2BGR555,
             'BGR(565)': cv2.COLOR_BGR2BGR565,
@@ -216,10 +162,10 @@ class ImageConverter(wx.Frame):
         if selected_color is not None:
             output_img = cv2.cvtColor(mixed_img, color_format_dict[selected_color])
         else: output_img = mixed_img
-        # output path (path + name + format)
+        # 确定输出路径
         output_ = f"{save_path}{save_name}{selected_format}"
 
-        # save image
+        # 保存输出图片
         try:
             cv2.imwrite(output_, output_img)
             wx.MessageBox(f'Image saved as {output_}', 'Success',
