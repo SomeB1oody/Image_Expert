@@ -470,7 +470,7 @@ class ColorMaster(wx.Frame):
 if __name__ == "__main__":
     app = wx.App()
     frame = ColorMaster(None)
-    frame.SetTitle('Image Format Converter')
+    frame.SetTitle('Color Master')
     frame.SetSize((800, 800))
     frame.Show()
     app.MainLoop()
