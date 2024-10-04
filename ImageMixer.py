@@ -231,7 +231,7 @@ class ImageConverter(wx.Frame):
 if __name__ == "__main__":
     app = wx.App()
     frame = ImageConverter(None)
-    frame.SetTitle('Image Format Converter')
+    frame.SetTitle('Image Mixer')
     frame.SetSize((1100, 700))
     frame.Show()
     app.MainLoop()
