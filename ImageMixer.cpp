@@ -210,7 +210,7 @@ public:
 };
 wxIMPLEMENT_APP(MyApp);
 bool MyApp::OnInit() {
-    ImageConverter* frame = new ImageConverter("Image Format Converter");
+    ImageConverter* frame = new ImageConverter("Image Mixer");
     frame->SetSize(wxSize(1100, 700));
     frame->Show(true);
     return true;
