@@ -1,5 +1,5 @@
 # Image_Expert
-Processing your input image to almost any format
+Processing your input image
 
 Function:
 1. Brightness adjustment
