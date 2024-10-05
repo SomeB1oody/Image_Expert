@@ -8,3 +8,4 @@ Function:
 4. Crop
 5. Image format transfer(Example: .jpg to .png)
 6. Image color format transfer(Example: BGR to GRAY)
+7. Find the best matched image in a series of image
