@@ -70,8 +70,11 @@ class SimilarityFinder(wx.Frame):
         self.database_path = wx.TextCtrl(panel)
         self.vbox.Add(self.database_path, flag=wx.EXPAND | wx.ALL, border=5)
         # 展示输入图片
+        empty_image = wx.Image(300, 300)  # 创建一个空白的 wx.Image
+        empty_image.Replace(0, 0, 0, 255, 255, 255)  # 将所有像素设为白色
+        empty_bitmap = wx.Bitmap(empty_image)  # 将 wx.Image 转换为 wx.Bitmap
         self.vbox.Add(wx.StaticText(panel, label="Input image:"), flag=wx.ALL, border=5)
-        self.image_area = wx.StaticBitmap(panel)
+        self.image_area = wx.StaticBitmap(panel, bitmap=empty_bitmap)
         self.vbox.Add(self.image_area, flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         # 按钮
         self.find_button = wx.Button(panel, label="Find")
@@ -84,7 +87,7 @@ class SimilarityFinder(wx.Frame):
         # 展示匹配图片
         self.img_text = wx.StaticText(panel, label="")
         self.vbox.Add(self.img_text, flag=wx.ALL, border=5)
-        self.image_area_matched = wx.StaticBitmap(panel)
+        self.image_area_matched = wx.StaticBitmap(panel, bitmap=empty_bitmap)
         self.vbox.Add(self.image_area_matched, flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         # 设置面板的布局管理器
         panel.SetSizer(self.vbox)
@@ -121,7 +124,6 @@ class SimilarityFinder(wx.Frame):
             self.image_area.SetBitmap(bitmap)
             self.Refresh()
         except Exception as e:
-            self.image_area.SetBitmap(wx.NullBitmap)
             wx.MessageBox(f"Fail to show image: {str(e)}", "Error", wx.OK | wx.ICON_ERROR)
         # 寻找匹配图片
         id_ = match_id(path, database_path, match_point_number)
@@ -137,7 +139,6 @@ class SimilarityFinder(wx.Frame):
                 bitmap = wx.Bitmap(img_)
                 self.image_area_matched.SetBitmap(bitmap)
             except Exception as e:
-                self.image_area.SetBitmap(wx.NullBitmap)
                 self.img_text.SetLabel(f"Fail to show image: {str(e)}")
         self.Refresh()
 
