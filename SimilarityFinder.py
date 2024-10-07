@@ -146,7 +146,7 @@ class SimilarityFinder(wx.Frame):
 if __name__ == "__main__":
     app = wx.App()
     frame = SimilarityFinder(None)
-    frame.SetTitle('Raw DeBayer')
+    frame.SetTitle('SimilarityFinder')
     frame.SetSize((700, 1000))
     frame.Show()
     app.MainLoop()
