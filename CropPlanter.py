@@ -127,7 +127,7 @@ class CropPlanter(wx.Frame):
 if __name__ == "__main__":
     app = wx.App()
     frame = CropPlanter(None)
-    frame.SetTitle('Image Format Converter')
+    frame.SetTitle('Crop Planter')
     frame.SetSize((700, 500))
     frame.Show()
     app.MainLoop()
