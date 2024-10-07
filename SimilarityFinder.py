@@ -70,6 +70,7 @@ class SimilarityFinder(wx.Frame):
         self.database_path = wx.TextCtrl(panel)
         self.vbox.Add(self.database_path, flag=wx.EXPAND | wx.ALL, border=5)
         # 展示输入图片
+        self.vbox.Add(wx.StaticText(panel, label="Input image:"), flag=wx.ALL, border=5)
         self.image_area = wx.StaticBitmap(panel)
         self.vbox.Add(self.image_area, flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         # 按钮
@@ -81,6 +82,8 @@ class SimilarityFinder(wx.Frame):
         "Please click \"Find\" button first to show best matched image")
         self.vbox.Add(self.name_text, flag=wx.ALL, border=5)
         # 展示匹配图片
+        self.img_text = wx.StaticText(panel, label="")
+        self.vbox.Add(self.img_text, flag=wx.ALL, border=5)
         self.image_area_matched = wx.StaticBitmap(panel)
         self.vbox.Add(self.image_area_matched, flag=wx.ALIGN_CENTER | wx.ALL, border=10)
         # 设置面板的布局管理器
@@ -133,10 +136,10 @@ class SimilarityFinder(wx.Frame):
                 img_ = img_.Scale(width_, 300, wx.IMAGE_QUALITY_HIGH)
                 bitmap = wx.Bitmap(img_)
                 self.image_area_matched.SetBitmap(bitmap)
-                self.Refresh()
             except Exception as e:
                 self.image_area.SetBitmap(wx.NullBitmap)
-                wx.MessageBox(f"Fail to show image: {str(e)}", "Error", wx.OK | wx.ICON_ERROR)
+                self.img_text.SetLabel(f"Fail to show image: {str(e)}")
+        self.Refresh()
 
 
 if __name__ == "__main__":
