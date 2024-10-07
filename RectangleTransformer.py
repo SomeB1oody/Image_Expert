@@ -296,7 +296,7 @@ class RectangleTransformer(wx.Frame):
 if __name__ == "__main__":
     app = wx.App()
     frame = RectangleTransformer(None)
-    frame.SetTitle('Raw DeBayer')
+    frame.SetTitle('Rectangle Transformer')
     frame.SetSize((700, 600))
     frame.Show()
     app.MainLoop()
