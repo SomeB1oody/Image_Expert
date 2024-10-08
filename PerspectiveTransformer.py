@@ -50,8 +50,8 @@ def validate_points(pt_values, img_shape):
     for pt in pt_values:
         if not pt:
             return False, 'Please enter position first'
-        if not pt.isdigit() or int(pt) <= 0:
-            return False, 'Number must be greater than zero.'
+        if not pt.isdigit():
+            return False, 'Input must be a number that is greater than zero.'
     for pt_x, pt_y in zip(pt_values[::2], pt_values[1::2]):
         if int(pt_x) > img_shape[1]:
             return False, 'X position cannot be greater than actual image width.'
@@ -74,7 +74,7 @@ def width_and_height(width, height, max_width, max_height):
     if not width and not height: return False, 'Please enter width or height first.'
 
     if width.isdigit() and height.isdigit(): width_, height_ = int(width), int(height)
-    else: return False, 'Input should be a digit.'
+    else: return False, 'Input should be a number that is greater than zero.'
 
     min_ = width_ > 0 and height_ > 0
     max_ = width_ <= max_width and height_ <= max_height
