@@ -1,7 +1,5 @@
 import cv2
 import wx
-from navigator_updater.widgets.dialogs import MessageBox
-
 
 def convert_to_double(str1, str2):
     # 初始化返回的值
@@ -144,7 +142,7 @@ class MorphologyRectangle(wx.Frame):
         if path:
             img = cv2.imread(path, cv2.IMREAD_COLOR)
             if img is None:
-                wx,MessageBox("Fail to load image", "Error", wx.OK, wx.ICON_ERROR)
+                wx.MessageBox("Fail to load image", "Error", wx.OK, wx.ICON_ERROR)
                 return
         else:
             wx.MessageBox("Please enter input path first", 'Error', wx.OK | wx.ICON_ERROR)
