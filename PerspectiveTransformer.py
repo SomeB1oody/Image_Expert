@@ -44,6 +44,20 @@ def order_points(pts):
 
     return rect
 
+def four_point_transform(pts):
+    rect = order_points(pts)
+    (tl, tr, br, bl) = rect
+
+    widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+    widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+    maxWidth = max(int(widthA), int(widthB))
+
+    heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+    heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+    maxHeight = max(int(heightA), int(heightB))
+
+    return maxWidth, maxHeight
+
 def validate_points(pt_values, img_shape):
     # 检查输入的点是否有效
     for pt in pt_values:
@@ -119,9 +133,6 @@ def find_corners(img):
         # 直线数量达到目标值则终止循环
         hough_lines = np.array(new_line)
         if len(hough_lines) == 4: sign3 = False
-
-    threshold_ = 0.2 * min(img.shape[0], img.shape[1])
-    points = []
 
     # 分别计算宽度和高度的阈值
     width_threshold = 0.2 * img.shape[1]
@@ -243,17 +254,6 @@ class RectangleTransformer(wx.Frame):
         self.pt4_y = wx.TextCtrl(panel)
         self.hbox4.Add(self.pt4_y, flag=wx.EXPAND, border=5)
         self.vbox.Add(self.hbox4, flag=wx.ALL, border=5)
-        # 转换后的图像大小
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Type in image size you want after transformation: (width X height)"
-                                    ), flag=wx.ALL, border=5)
-        self.hbox5 = wx.BoxSizer(wx.HORIZONTAL)
-        self.width = wx.TextCtrl(panel)
-        self.hbox5.Add(self.width, flag=wx.ALL, border=5)
-        self.hbox5.Add(wx.StaticText(panel, label="X"), flag=wx.ALL, border=2)
-        self.height = wx.TextCtrl(panel)
-        self.hbox5.Add(self.height, flag=wx.ALL, border=5)
-        self.vbox.Add(self.hbox5, flag=wx.ALL, border=5)
         # 插值算法选择
         self.interpolation = wx.RadioBox(
             panel, label="Choose interpolation algorithm:", choices=[
@@ -284,17 +284,9 @@ class RectangleTransformer(wx.Frame):
         # 获取用户输入
         input_path = self.input_path.GetValue()
         manual_or_auto = self.manual_or_auto.GetStringSelection()
-        width, height = self.width.GetValue(), self.height.GetValue()
         # 图片输入
         img = load_img(input_path)
 
-        flag, error_text = width_and_height(width, height, img.shape[1], img.shape[0])
-        if not flag:
-            wx.MessageBox(error_text, "Error", wx.OK)
-            return
-        else: width_, height_ = int(width), int(height)
-
-        points = []
         if manual_or_auto == 'Auto': points = find_corners(img)
         else:
             pt1_x, pt1_y = self.pt1_x.GetValue(), self.pt1_y.GetValue()
@@ -310,6 +302,7 @@ class RectangleTransformer(wx.Frame):
             points = [(int(pt_values[i]) - 1, int(pt_values[i + 1]) - 1) for i in range(0, len(pt_values), 2)]
         # 变换后图片生成
         current = np.array(points[:4], dtype=np.float32)
+        width_, height_ = four_point_transform(current)
         change = np.array([[0, 0], [width_, 0], [width_, height_], [0, height_]], dtype=np.float32)
         sorted_pts = order_points(current)
         transfer_matrix = cv2.getPerspectiveTransform(sorted_pts, change)
@@ -334,19 +327,11 @@ class RectangleTransformer(wx.Frame):
         output_name = self.output_name.GetValue()
         output_format = self.output_format.GetStringSelection()
         manual_or_auto = self.manual_or_auto.GetStringSelection()
-        width, height = self.width.GetValue(), self.height.GetValue()
         interpolation = self.interpolation.GetStringSelection()
         border = self.border.GetStringSelection()
         # 图片输入
         img = load_img(input_path)
 
-        flag, error_text = width_and_height(width, height, img.shape[1], img.shape[0])
-        if not flag:
-            wx.MessageBox(error_text, "Error", wx.OK)
-            return
-        else: width_, height_ = int(width), int(height)
-
-        points = []
         if manual_or_auto == 'Auto': points = find_corners(img)
         # 手动输入
         else:
@@ -363,6 +348,7 @@ class RectangleTransformer(wx.Frame):
             points = [(int(pt_values[i]) - 1, int(pt_values[i + 1]) - 1) for i in range(0, len(pt_values), 2)]
         # 变换后图片生成
         current = np.array(points[:4], dtype=np.float32)
+        width_, height_ = four_point_transform(current)
         change = np.array([[0, 0], [width_, 0], [width_, height_], [0, height_]], dtype=np.float32)
         sorted_pts = order_points(current)
         transfer_matrix = cv2.getPerspectiveTransform(sorted_pts, change)
@@ -382,6 +368,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = RectangleTransformer(None)
     frame.SetTitle('Perspective Transformer')
-    frame.SetSize((825, 775))
+    frame.SetSize((825, 800))
     frame.Show()
     app.MainLoop()
