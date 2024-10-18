@@ -1,3 +1,7 @@
+#Author: Stan Yin
+#GitHub Name: SomeB1oody
+#This project is based on CC 4.0 BY, please mention my name if you use it.
+#This project requires opencv and wx.
 import cv2
 import wx
 
@@ -98,11 +102,14 @@ class MorphologyRectangle(wx.Frame):
 
         self.vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 输入图片路径
-        self.vbox.Add(wx.StaticText(panel, label="Input image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox, flag=wx.EXPAND)
         # 最小面积
         self.vbox.Add(wx.StaticText(panel, label=
         "Specify the minimum area(pixel^2) to look for(not specified if left blank)："
@@ -132,9 +139,16 @@ class MorphologyRectangle(wx.Frame):
         panel.SetSizer(self.vbox)
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
     def on_find_button(self, event):
         #获取输入
-        path = self.input_path.GetValue()
+        path = self.selected_file
         min_area = self.minimum_area.GetValue()
         rmin = self.range_min.GetValue()
         rmax = self.range_max.GetValue()
