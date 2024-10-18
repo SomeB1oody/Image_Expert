@@ -1,7 +1,10 @@
+#Author: Stan Yin
+#GitHub Name: SomeB1oody
+#This project is based on CC 4.0 BY, please mention my name if you use it.
+#This project requires opencv, numpy, wxWidgets and re.
 import numpy as np
 import wx
 import cv2
-import os
 import re
 
 def average_downsample(image, factor):
@@ -108,19 +111,15 @@ def is_valid_windows_filename(filename: str) -> bool:
 def input_process(input_path, output_path, output_name, format_choice, factor, method):
     # 输入&读取
     if input_path is None: return False, 'Please provide input path', None, None, None, None
-    if not os.path.isfile(input_path): return False, 'Input file does not exist', None, None, None, None
     img = cv2.imread(input_path)
-    if img is None:
-        return False, 'Cannot load image', None, None, None, None
+    if img is None: return False, 'Cannot load image', None, None, None, None
 
     # 输出名称
     if output_name is None: return False, 'Please provide output name', None, None, None, None
-    if not is_valid_windows_filename(output_name):
-        return False, 'Invalid output filename', None, None, None, None
+    if not is_valid_windows_filename(output_name): return False, 'Invalid output filename', None, None, None, None
 
     # 输出路径与名称的合成
     if output_path is None: return False, 'Please provide output path', None, None, None, None
-    if not os.path.exists(output_path): return False, 'Output path does not exist', None, None, None, None
     save_path = f'{output_path}{output_name}{format_choice}'
 
     # factor输入
@@ -145,13 +144,14 @@ class ImageReducer(wx.Frame):
 
         self.vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 输入图片路径
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Input image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox, flag=wx.EXPAND)
 
         # 输入图片输出名称
         self.vbox.Add(wx.StaticText(panel, label=
@@ -159,13 +159,14 @@ class ImageReducer(wx.Frame):
         self.output_name = wx.TextCtrl(panel)
         self.vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
 
-        # 输入图片输出位置
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Output image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
-        self.output_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输出路径
+        self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.folder_button = wx.Button(panel, label="Select output folder")
+        self.Bind(wx.EVT_BUTTON, self.on_select_folder, self.folder_button)
+        self.hbox2.Add(self.folder_button, flag=wx.ALL, border=5)
+        self.output_path_text = wx.StaticText(panel, label="Click \"Select output folder\" first")
+        self.hbox2.Add(self.output_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox2, flag=wx.EXPAND)
 
         # 输出格式单选框
         self.output_format = wx.RadioBox(
@@ -206,9 +207,23 @@ class ImageReducer(wx.Frame):
         panel.SetSizer(self.vbox)
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
+    def on_select_folder(self, event):
+        with wx.DirDialog(None, "Select a folder for output", "",
+                          style=wx.DD_DEFAULT_STYLE) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.output_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_folder = dialog.GetPath()
+
     def on_preview(self, event):
         flag, error_message, img, _, factor, method = input_process(
-        self.input_path.GetValue(), self.output_path.GetValue(), self.output_name.GetValue(),
+            self.selected_file, self.selected_folder, self.output_name.GetValue(),
         self.output_format.GetStringSelection(),self.factor.GetValue(), self.lb_method.GetStringSelection()
         )
         if not flag:
@@ -220,7 +235,7 @@ class ImageReducer(wx.Frame):
 
     def on_convert(self, event):
         flag, error_message, img, save_path, factor, method = input_process(
-            self.input_path.GetValue(), self.output_path.GetValue(), self.output_name.GetValue(),
+            self.selected_file, self.selected_folder, self.output_name.GetValue(),
             self.output_format.GetStringSelection(), self.factor.GetValue(), self.lb_method.GetStringSelection()
         )
         if not flag:
@@ -240,6 +255,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = ImageReducer(None)
     frame.SetTitle('Color Master')
-    frame.SetSize((750, 575))
+    frame.SetSize((800, 525))
     frame.Show()
     app.MainLoop()
