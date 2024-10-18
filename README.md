@@ -10,5 +10,4 @@ Function:
 6. Image color format transfer(Example: BGR to GRAY)
 7. Find the best matched image in a series of images
 8. Use perspective transformation of a rectangle on an image to obtain an image of this rectangle in a vertical view.
-9. QR & Bar -> scan & decode
 10. Using Morphology to find specific shape(Rectange) in an image
