@@ -1,9 +1,10 @@
 #Author: Stan Yin
 #GitHub Name: SomeB1oody
 #This project is based on CC 4.0 BY, please mention my name if you use it.
-#This project requires opencv and wxWidgets.
+#This project requires opencv, re and wxWidgets.
 import wx
 import cv2 as cv
+import re
 
 global input_format, output_format_basic, input_color_format_list_additional, input_format_additional
 global output_color_format_list_basic
@@ -187,6 +188,28 @@ format_dict = {
         'GrayScale': 'GRAY'
 }
 
+def is_valid_windows_filename(filename: str) -> bool:
+    # 检查是否包含非法字符
+    invalid_chars = r'[<>:"/\\|?*]'
+    if re.search(invalid_chars, filename):
+        return False
+    # 检查是否是保留名称
+    reserved_names = [
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    ]
+    if filename.upper() in reserved_names:
+        return False
+    # 检查是否以空格或点结尾
+    if filename.endswith(' ') or filename.endswith('.'):
+        return False
+    # 检查文件名长度
+    if len(filename) > 255:
+        return False
+    # 如果所有检查都通过，返回True
+    return True
+
 class ColorMaster(wx.Frame):
     def __init__(self, *args, **kw):
         super(ColorMaster, self).__init__(*args, **kw)
@@ -196,13 +219,14 @@ class ColorMaster(wx.Frame):
 
         global input_color_format_list_additional, output_color_format_list_basic
 
-        # 输入图片路径
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Input image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox, flag=wx.EXPAND)
 
         # 输入图片输出名称
         self.vbox.Add(wx.StaticText(panel, label=
@@ -210,13 +234,14 @@ class ColorMaster(wx.Frame):
         self.output_name = wx.TextCtrl(panel)
         self.vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
 
-        # 输入图片输出位置
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Output image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
-        self.output_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输出路径
+        self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.folder_button = wx.Button(panel, label="Select output folder")
+        self.Bind(wx.EVT_BUTTON, self.on_select_folder, self.folder_button)
+        self.hbox2.Add(self.folder_button, flag=wx.ALL, border=5)
+        self.output_path_text = wx.StaticText(panel, label="Click \"Select output folder\" first")
+        self.hbox2.Add(self.output_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox2, flag=wx.EXPAND)
 
         # 输出格式单选框
         self.output_format = wx.RadioBox(
@@ -285,6 +310,20 @@ class ColorMaster(wx.Frame):
         panel.SetSizer(self.vbox)
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
+    def on_select_folder(self, event):
+        with wx.DirDialog(None, "Select a folder for output", "",
+                          style=wx.DD_DEFAULT_STYLE) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.output_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_folder = dialog.GetPath()
+
     def color_format_lb_input(self, event):
         global input_format, input_color_format_list_additional
         input_format = event.GetEventObject().GetStringSelection()
@@ -314,7 +353,7 @@ class ColorMaster(wx.Frame):
         global input_color_format_list_additional, output_color_format_list_basic, unchanged_list
         if input_format == 'RGB':
             self.if_accept_trans.Enable(False)  # 禁用选择
-            self.if_accept_trans.SetSelection(0)  # 重置选择为 'No'
+            self.if_accept_trans.SetSelection(1)  # 重置选择为 'Yes'
             self.warning_text.SetLabel("No loss of image information")
         else:
             self.if_accept_trans.Enable(True)  # 启用选择
@@ -356,6 +395,8 @@ class ColorMaster(wx.Frame):
                 case 'BGRA':
                     output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'RGBA', 'YUV']
                 case 'RGB':
+                    self.if_accept_trans.Enable(False)  # 禁用选择
+                    self.if_accept_trans.SetSelection(1)  # 重置选择为 'Yes'
                     output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'HSV', 'HLS', 'YUV', 'LAB']
                 case 'RGBA':
                     output_color_format_list_basic = ['BGR', 'RGB', 'GrayScale', 'M_RGBA', 'YUV', 'BGRA']
@@ -412,11 +453,11 @@ class ColorMaster(wx.Frame):
         # 获取用户输入
         global input_format, output_format_basic, input_format_additional
         selected_img_format = self.output_format.GetStringSelection()
-        save_path = self.output_path.GetValue()
+        save_path = self.selected_folder
         save_name = self.output_name.GetValue()
         output_format_additional = self.lb_additional_output.GetStringSelection()
         if_accept_trans = self.if_accept_trans.GetSelection()
-        input_path = self.input_path.GetValue()
+        input_path = self.selected_file
 
 
         input_format_expression = format_dict[input_format_additional]
@@ -425,7 +466,7 @@ class ColorMaster(wx.Frame):
 
         # 没有输入路径
         if not input_path:
-            wx.MessageBox('Please enter input path and name', 'Error', wx.OK | wx.ICON_ERROR)
+            wx.MessageBox('Please select input file', 'Error', wx.OK | wx.ICON_ERROR)
             return
         # 是否先转换
         if if_accept_trans == 'Yes':
@@ -438,9 +479,17 @@ class ColorMaster(wx.Frame):
             wx.MessageBox('Cannot load image', 'Error', wx.OK | wx.ICON_ERROR)
             return
         # 没有输出路径和名字
-        if not save_path or not save_name:
-            wx.MessageBox('Please enter output path and name', 'Error', wx.OK | wx.ICON_ERROR)
+        if not save_path:
+            wx.MessageBox('Please select output folder', 'Error', wx.OK | wx.ICON_ERROR)
             return
+        # 输出名字不合法
+        if not save_name:
+            wx.MessageBox('Please enter output name', 'Error', wx.OK | wx.ICON_ERROR)
+            return
+        else:
+            if not is_valid_windows_filename(save_name):
+                wx.MessageBox('output name invalid', 'Error', wx.OK | wx.ICON_ERROR)
+                return
         # 没有输入路径
         if not input_path:
             wx.MessageBox('Please enter input path and name','Error', wx.OK | wx.ICON_ERROR)
@@ -448,29 +497,26 @@ class ColorMaster(wx.Frame):
         # 是否先转换
         if if_accept_trans == 'Yes':    input_img = cv.imread(input_path, cv.IMREAD_COLOR)
         else:   input_img = cv.imread(input_path, cv.IMREAD_UNCHANGED)
-        # 是否读取成功
-        if input_img is None:
-            wx.MessageBox('Cannot load image', 'Error', wx.OK | wx.ICON_ERROR)
-            return
-        # 没有输出路径和名字
-        if not save_path or not save_name:
-            wx.MessageBox('Please enter output path and name','Error', wx.OK | wx.ICON_ERROR)
-            return
         # 转换
         in_n_out = f'{input_format_expression} to {output_format_expression}'
         output_img = cv.cvtColor(input_img, translate_dict[in_n_out])
 
         # 确定输出路径
-        output_ = f"{save_path}{save_name}{selected_img_format}"
+        output_ = f"{save_path}/{save_name}{selected_img_format}"
 
-        # 保存图片
-        cv.imwrite(output_, output_img)
+        # 保存输出图片
+        try:
+            cv.imwrite(output_, output_img)
+            wx.MessageBox(f'Image saved as {output_}', 'Success',
+                          wx.OK | wx.ICON_INFORMATION)
+        except Exception as e:
+            wx.MessageBox(str(e), 'Error', wx.OK | wx.ICON_ERROR)
 
 
 if __name__ == "__main__":
     app = wx.App()
     frame = ColorMaster(None)
     frame.SetTitle('Color Master')
-    frame.SetSize((800, 800))
+    frame.SetSize((800, 700))
     frame.Show()
     app.MainLoop()
