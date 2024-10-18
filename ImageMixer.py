@@ -1,10 +1,11 @@
 #Author: Stan Yin
 #GitHub Name: SomeB1oody
 #This project is based on CC 4.0 BY, please mention my name if you use it.
-#This project requires opencv and wxWidgets.
+#This project requires opencv, numpy, re and wxWidgets.
 import cv2
 import numpy as np
 import wx
+import re
 
 global alpha, beta, gamma
 alpha = 100
@@ -12,6 +13,28 @@ beta = 100
 gamma = 100
 global img_without_crop, img, selected_color
 selected_color = None
+
+def is_valid_windows_filename(filename: str) -> bool:
+    # 检查是否包含非法字符
+    invalid_chars = r'[<>:"/\\|?*]'
+    if re.search(invalid_chars, filename):
+        return False
+    # 检查是否是保留名称
+    reserved_names = [
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    ]
+    if filename.upper() in reserved_names:
+        return False
+    # 检查是否以空格或点结尾
+    if filename.endswith(' ') or filename.endswith('.'):
+        return False
+    # 检查文件名长度
+    if len(filename) > 255:
+        return False
+    # 如果所有检查都通过，返回True
+    return True
 
 def mixer(input_image, _alpha_, _beta_, _gamma_, window_name, flag):
     look_up_table = np.zeros((256,), dtype=np.uint8)
@@ -41,20 +64,26 @@ class ImageConverter(wx.Frame):
 
         vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 输入图片路径
-        vbox.Add(wx.StaticText(panel, label="Input image path:"), flag=wx.ALL, border=5)
-        vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        vbox.Add(self.hbox, flag=wx.EXPAND)
         #输入图片输出名称
         vbox.Add(wx.StaticText(panel, label="Output image name:(no file suffix)"), flag=wx.ALL, border=5)
         self.output_name = wx.TextCtrl(panel)
         vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
-        #输入图片输出位置
-        vbox.Add(wx.StaticText(panel, label="Output image path:"), flag=wx.ALL, border=5)
-        vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
-        self.output_path = wx.TextCtrl(panel)
-        vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输出路径
+        self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.folder_button = wx.Button(panel, label="Select output folder")
+        self.Bind(wx.EVT_BUTTON, self.on_select_folder, self.folder_button)
+        self.hbox2.Add(self.folder_button, flag=wx.ALL, border=5)
+        self.output_path_text = wx.StaticText(panel, label="Click \"Select output folder\" first")
+        self.hbox2.Add(self.output_path_text, flag=wx.ALL, border=5)
+        vbox.Add(self.hbox2, flag=wx.EXPAND)
 
         # 输出格式单选框
         self.output_format = wx.RadioBox(
@@ -94,9 +123,23 @@ class ImageConverter(wx.Frame):
         # 触发布局更新
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
+    def on_select_folder(self, event):
+        with wx.DirDialog(None, "Select a folder for output", "",
+                          style=wx.DD_DEFAULT_STYLE) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.output_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_folder = dialog.GetPath()
+
     def brightness_and_contrast_adjustment(self, event):
         global gamma, alpha, beta, img
-        load_image(self.input_path.GetValue())
+        load_image(self.selected_file)
         def alpha_track_bar(alpha_):
             global alpha, img
             alpha = alpha_
@@ -117,7 +160,7 @@ class ImageConverter(wx.Frame):
 
     def _gamma_correction_(self, event):
         global gamma, img
-        load_image(self.input_path.GetValue())
+        load_image(self.selected_file)
         def gamma_track_bar(_gamma):
             global alpha, beta, gamma
             gamma = _gamma
@@ -135,12 +178,20 @@ class ImageConverter(wx.Frame):
     def on_convert(self, event):
         global img, selected_color, alpha, beta, gamma
         #获取用户的选择
-        load_image(self.input_path.GetValue())
-        save_path = self.output_path.GetValue()
+        load_image(self.selected_file)
+        save_path = self.selected_folder
         save_name = self.output_name.GetValue()
-        if not save_path or not save_name:
-            wx.MessageBox('Please enter output path and name','Error', wx.OK | wx.ICON_ERROR)
+        if not save_path:
+            wx.MessageBox('Please select output path','Error', wx.OK | wx.ICON_ERROR)
             return
+        if not save_name:
+            wx.MessageBox('Please enter output name','Error', wx.OK | wx.ICON_ERROR)
+            return
+        else:
+            if not is_valid_windows_filename(save_name):
+                wx.MessageBox('Output name invalid, please try again','Error', wx.OK | wx.ICON_ERROR)
+                return
+
         selected_format = self.output_format.GetStringSelection()
         #Brightness Contrast Gamma
         mixed_img = mixer(img, alpha / 100.0, beta - 100, gamma / 100.0, "", False)
@@ -163,7 +214,7 @@ class ImageConverter(wx.Frame):
             output_img = cv2.cvtColor(mixed_img, color_format_dict[selected_color])
         else: output_img = mixed_img
         # 确定输出路径
-        output_ = f"{save_path}{save_name}{selected_format}"
+        output_ = f"{save_path}/{save_name}{selected_format}"
 
         # 保存输出图片
         try:
@@ -178,6 +229,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = ImageConverter(None)
     frame.SetTitle('Image Mixer')
-    frame.SetSize((1100, 700))
+    frame.SetSize((800, 600))
     frame.Show()
     app.MainLoop()
