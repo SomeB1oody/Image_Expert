@@ -54,11 +54,14 @@ class SimilarityFinder(wx.Frame):
         panel = wx.Panel(self)
 
         self.vbox = wx.BoxSizer(wx.VERTICAL)
-        # 输入图片路径
-        self.vbox.Add(wx.StaticText(panel, label="Input image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox, flag=wx.EXPAND)
         # 输入匹配点数
         self.vbox.Add(wx.StaticText(panel, label=
         "Enter min number of match point:"), flag=wx.ALL, border=5)
@@ -93,9 +96,16 @@ class SimilarityFinder(wx.Frame):
         panel.SetSizer(self.vbox)
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
 
     def on_find(self, event):
-        path = self.input_path.GetValue()
+        path = self.selected_file
         database_path = self.database_path.GetValue()
         match_point_number = self.match_point_number.GetValue()
         # 判断输入是否有效
@@ -108,12 +118,9 @@ class SimilarityFinder(wx.Frame):
         if not os.path.isfile(path):
             wx.MessageBox(f"Cannot find file in path '{path}'",'Error', wx.OK | wx.ICON_ERROR)
             return
-        if match_point_number.isdigit():
-            if int(match_point_number) <= 0:
-                wx.MessageBox("Height must be greater than 0",'Error', wx.OK | wx.ICON_ERROR)
-                return
-        else:
-            wx.MessageBox("match point number must be a digit",'Error', wx.OK | wx.ICON_ERROR)
+        if not match_point_number.isdigit():
+            wx.MessageBox("Input must be a number that is greater than zero.",
+            'Error', wx.OK | wx.ICON_ERROR)
             return
         #展示输入图片
         try:
