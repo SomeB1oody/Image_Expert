@@ -1,10 +1,11 @@
 #Author: Stan Yin
 #GitHub Name: SomeB1oody
 #This project is based on CC 4.0 BY, please mention my name if you use it.
-#This project requires opencv.
+#This project requires opencv, numpy, wxWidgets and re.
 import numpy as np
 import cv2
 import wx
+import re
 
 border_dict = {
     'Constant': cv2.BORDER_CONSTANT,
@@ -20,6 +21,30 @@ interpolation_dict = {
     'Bicubic': cv2.INTER_CUBIC,
     'Lanczos': cv2.INTER_LANCZOS4,
 }
+
+
+def is_valid_windows_filename(filename: str) -> bool:
+    # 检查是否包含非法字符
+    invalid_chars = r'[<>:"/\\|?*]'
+    if re.search(invalid_chars, filename):
+        return False
+    # 检查是否是保留名称
+    reserved_names = [
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    ]
+    if filename.upper() in reserved_names:
+        return False
+    # 检查是否以空格或点结尾
+    if filename.endswith(' ') or filename.endswith('.'):
+        return False
+    # 检查文件名长度
+    if len(filename) > 255:
+        return False
+    # 如果所有检查都通过，返回True
+    return True
+
 
 def load_img(path):
     if not path:
@@ -177,13 +202,14 @@ class RectangleTransformer(wx.Frame):
 
         self.vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 输入图片路径
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Input image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox, flag=wx.EXPAND)
 
         # 输入图片输出名称
         self.vbox.Add(wx.StaticText(panel, label=
@@ -191,13 +217,14 @@ class RectangleTransformer(wx.Frame):
         self.output_name = wx.TextCtrl(panel)
         self.vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
 
-        # 输入图片输出位置
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Output image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label=
-        "Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
-        self.output_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输出路径
+        self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.folder_button = wx.Button(panel, label="Select output folder")
+        self.Bind(wx.EVT_BUTTON, self.on_select_folder, self.folder_button)
+        self.hbox2.Add(self.folder_button, flag=wx.ALL, border=5)
+        self.output_path_text = wx.StaticText(panel, label="Click \"Select output folder\" first")
+        self.hbox2.Add(self.output_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox2, flag=wx.EXPAND)
 
         # 输出格式单选框
         self.output_format = wx.RadioBox(
@@ -280,10 +307,27 @@ class RectangleTransformer(wx.Frame):
         panel.SetSizer(self.vbox)
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
+    def on_select_folder(self, event):
+        with wx.DirDialog(None, "Select a folder for output", "",
+                          style=wx.DD_DEFAULT_STYLE) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.output_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_folder = dialog.GetPath()
+
     def on_preview(self, event):
         # 获取用户输入
-        input_path = self.input_path.GetValue()
+        input_path = self.selected_file
         manual_or_auto = self.manual_or_auto.GetStringSelection()
+        if not input_path:
+            wx.MessageBox('Please select an input image', 'Error', wx.OK | wx.ICON_ERROR)
+            return
         # 图片输入
         img = load_img(input_path)
 
@@ -322,13 +366,26 @@ class RectangleTransformer(wx.Frame):
 
     def on_transform(self, event):
         # 获取用户输入
-        input_path = self.input_path.GetValue()
-        output_path = self.output_path.GetValue()
+        input_path = self.selected_file
+        output_path = self.selected_folder
         output_name = self.output_name.GetValue()
         output_format = self.output_format.GetStringSelection()
         manual_or_auto = self.manual_or_auto.GetStringSelection()
         interpolation = self.interpolation.GetStringSelection()
         border = self.border.GetStringSelection()
+        if not input_path:
+            wx.MessageBox('Please select an input image', 'Error', wx.OK | wx.ICON_ERROR)
+            return
+        if not output_path:
+            wx.MessageBox('Please select an output path', 'Error', wx.OK | wx.ICON_ERROR)
+            return
+        if not output_name:
+            wx.MessageBox('Please enter output name', 'Error', wx.OK | wx.ICON_ERROR)
+            return
+        else:
+            if is_valid_windows_filename(output_name):
+                wx.MessageBox('Output name invalid, please try again', wx.OK | wx.ICON_ERROR)
+                return
         # 图片输入
         img = load_img(input_path)
 
@@ -356,6 +413,7 @@ class RectangleTransformer(wx.Frame):
         img_perspective = cv2.warpPerspective(
         img, transfer_matrix, (img.shape[1], img.shape[0]),
         interpolation_dict[interpolation], border_dict[border])
+
         #图片保存
         path_ = f'{output_path}{output_name}{output_format}'
         try:
@@ -368,6 +426,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = RectangleTransformer(None)
     frame.SetTitle('Perspective Transformer')
-    frame.SetSize((825, 800))
+    frame.SetSize((800, 680))
     frame.Show()
     app.MainLoop()
