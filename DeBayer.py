@@ -1,11 +1,11 @@
 #Author: Stan Yin
 #GitHub Name: SomeB1oody
 #This project is based on CC 4.0 BY, please mention my name if you use it.
-#This project requires opencv, os and wxWidgets.
+#This project requires opencv, re, numpy and wxWidgets.
 import wx
 import cv2
 import numpy as np
-import os
+import re
 
 translate_dict = {
     #BayerBG
@@ -59,6 +59,37 @@ translate_dict = {
     'BayerBGGR to RGBA': cv2.COLOR_BayerBGGR2RGBA,
     'BayerBGGR to GRAY': cv2.COLOR_BayerBGGR2GRAY,
 }
+
+def is_valid_windows_filename(filename: str) -> bool:
+    # 检查是否包含非法字符
+    invalid_chars = r'[<>:"/\\|?*]'
+    if re.search(invalid_chars, filename):
+        return False
+    # 检查是否是保留名称
+    reserved_names = [
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    ]
+    if filename.upper() in reserved_names:
+        return False
+    # 检查是否以空格或点结尾
+    if filename.endswith(' ') or filename.endswith('.'):
+        return False
+    # 检查文件名长度
+    if len(filename) > 255:
+        return False
+    # 如果所有检查都通过，返回True
+    return True
+
+def validate_and_convert_size(width_str: str, height_str: str):
+    if width_str.isdigit() and height_str.isdigit():
+        width = int(width_str)
+        height = int(height_str)
+        return width, height, True
+
+    return None, None, False
+
 class DeBayer(wx.Frame):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -67,17 +98,22 @@ class DeBayer(wx.Frame):
 
         self.vbox = wx.BoxSizer(wx.VERTICAL)
 
-        # 输入图片路径
-        self.vbox.Add(wx.StaticText(panel, label="Input image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\02.png"), flag=wx.ALL, border=5)
-        self.input_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.input_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输入路径
+        self.hbox = wx.BoxSizer(wx.HORIZONTAL)
+        self.file_button = wx.Button(panel, label="Select image")
+        self.Bind(wx.EVT_BUTTON, self.on_select_file, self.file_button)
+        self.hbox.Add(self.file_button,flag=wx.ALL, border=5)
+        self.input_path_text = wx.StaticText(panel, label="Click \"Select image\" first")
+        self.hbox.Add(self.input_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox, flag=wx.EXPAND)
         # 输入图片宽
         self.vbox.Add(wx.StaticText(panel, label="Please enter the image width："), flag=wx.ALL, border=5)
         self.img_width = wx.TextCtrl(panel)
+        self.vbox.Add(self.img_width, flag=wx.ALL, border=5)
         # 输入图片高
         self.vbox.Add(wx.StaticText(panel, label="Please enter the image height："), flag=wx.ALL, border=5)
         self.img_height = wx.TextCtrl(panel)
+        self.vbox.Add(self.img_height, flag=wx.ALL, border=5)
         # 输入图片位深度
         self.bit_depth = wx.RadioBox(panel, label="Choose bit depth:", choices=['8 bit', '16 bit'])
         self.vbox.Add(self.bit_depth, flag=wx.ALL, border=5)
@@ -85,11 +121,14 @@ class DeBayer(wx.Frame):
         self.vbox.Add(wx.StaticText(panel, label="Output image name:(no file suffix)"), flag=wx.ALL, border=5)
         self.output_name = wx.TextCtrl(panel)
         self.vbox.Add(self.output_name, flag=wx.EXPAND | wx.ALL, border=5)
-        # 输入图片输出位置
-        self.vbox.Add(wx.StaticText(panel, label="Output image path:"), flag=wx.ALL, border=5)
-        self.vbox.Add(wx.StaticText(panel, label="Example:C:\\Wallpaper\\"), flag=wx.ALL, border=5)
-        self.output_path = wx.TextCtrl(panel)
-        self.vbox.Add(self.output_path, flag=wx.EXPAND | wx.ALL, border=5)
+        # 输出路径
+        self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.folder_button = wx.Button(panel, label="Select output folder")
+        self.Bind(wx.EVT_BUTTON, self.on_select_folder, self.folder_button)
+        self.hbox2.Add(self.folder_button, flag=wx.ALL, border=5)
+        self.output_path_text = wx.StaticText(panel, label="Click \"Select output folder\" first")
+        self.hbox2.Add(self.output_path_text, flag=wx.ALL, border=5)
+        self.vbox.Add(self.hbox2, flag=wx.EXPAND)
         # 输出格式单选框
         self.output_format = wx.RadioBox(
             panel, label="Choose output format:", choices=[
@@ -104,13 +143,13 @@ class DeBayer(wx.Frame):
         ])
         self.vbox.Add(self.input_bayer_format, flag=wx.ALL, border=5)
         # 输出颜色格式选择框
-        self.output_bayer_format = wx.RadioBox(panel, label="Choose input bayer format:", choices=[
+        self.output_bayer_format = wx.RadioBox(panel, label="Choose output color format:", choices=[
             'BGR', 'BGR(EA)', 'BGR (VNG)', 'BGRA', 'RGB', 'RGB(EA)', 'RGB(VNG)', 'RGBA', 'GRAY'
         ])
         self.vbox.Add(self.output_bayer_format, flag=wx.ALL, border=5)
         # Tip
         self.vbox.Add(wx.StaticText(panel, label=
-        "If you need other color formats, using ColorMixer.py is a good choice."), flag=wx.ALL, border=5)
+        "If you need other color formats, using ColorMaster.py is a good choice."), flag=wx.ALL, border=5)
         # 转换按钮
         self.convert_button = wx.Button(panel, label="Convert")
         self.convert_button.Bind(wx.EVT_BUTTON, self.on_convert)
@@ -120,10 +159,24 @@ class DeBayer(wx.Frame):
         panel.SetSizer(self.vbox)
         panel.Layout()
 
+    def on_select_file(self, event):
+        with wx.FileDialog(None, "Select a image", wildcard="所有文件 (*.*)|*.*",
+                           style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.input_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_file = dialog.GetPath()
+
+    def on_select_folder(self, event):
+        with wx.DirDialog(None, "Select a folder for output", "",
+                          style=wx.DD_DEFAULT_STYLE) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                self.output_path_text.SetLabel(f"{dialog.GetPath()}")
+                self.selected_folder = dialog.GetPath()
+
     def on_convert(self, event):
         # 获取用户选择
-        path = self.input_path.GetValue()
-        save_path = self.output_path.GetValue()
+        path = self.selected_file
+        save_path = self.selected_folder
         save_name = self.output_name.GetValue()
         img_width, img_height = self.img_width.GetValue(), self.img_height.GetValue()
         bit_depth = self.bit_depth.GetStringSelection()
@@ -132,29 +185,25 @@ class DeBayer(wx.Frame):
         output_bayer_format = self.output_bayer_format.GetStringSelection()
         # 判断输入是否有效
         if not path:
-            wx.MessageBox("Please enter image path", "Error", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox("Please select input file", "Error", wx.OK | wx.ICON_ERROR)
             return
-        if not save_path or not save_name:
-            wx.MessageBox('Please enter output path and name','Error', wx.OK | wx.ICON_ERROR)
+        if not save_path:
+            wx.MessageBox('Please select output path','Error', wx.OK | wx.ICON_ERROR)
             return
-        if not os.path.exists(path):
-            wx.MessageBox(f"File path '{path}' does not exist",'Error', wx.OK | wx.ICON_ERROR)
+        if not save_name:
+            wx.MessageBox('Please enter output name','Error', wx.OK | wx.ICON_ERROR)
             return
-        if not os.path.isfile(path):
-            wx.MessageBox(f"Cannot find file in path '{path}'",'Error', wx.OK | wx.ICON_ERROR)
-            return
-        if img_width.isdigit():
-            if int(img_width) <= 0:
-                wx.MessageBox("Width must be greater than 0",'Error', wx.OK | wx.ICON_ERROR)
+        else:
+            if not is_valid_windows_filename(save_name):
+                wx.MessageBox('Output name is invalid', 'Error', wx.OK | wx.ICON_ERROR)
                 return
-            else: img_width = int(img_width)
-        else: wx.MessageBox("Width must be a digit",'Error', wx.OK | wx.ICON_ERROR)
-        if img_height.isdigit():
-            if int(img_height) <= 0:
-                wx.MessageBox("Height must be greater than 0",'Error', wx.OK | wx.ICON_ERROR)
-                return
-            else: img_height = int(img_height)
-        else: wx.MessageBox("Height must be a digit",'Error', wx.OK | wx.ICON_ERROR)
+
+        img_width, img_height, flag = validate_and_convert_size(img_width, img_height)
+
+        if not flag:
+            wx.MessageBox("Input number invalid", "Error", wx.OK | wx.ICON_ERROR)
+            return
+
         # 位深度判断
         if bit_depth == '8 bit': dtype = np.uint8
         else: dtype = np.uint16
@@ -166,7 +215,7 @@ class DeBayer(wx.Frame):
         trans_sentence = f'{input_bayer_format} to {output_bayer_format}'
         output_img = cv2.cvtColor(img, translate_dict[trans_sentence])
         # 确定输出路径
-        output_ = f"{save_path}{save_name}{selected_format}"
+        output_ = f"{save_path}/{save_name}{selected_format}"
         # 保存输出图片
         try:
             cv2.imwrite(output_, output_img)
@@ -180,6 +229,6 @@ if __name__ == "__main__":
     app = wx.App()
     frame = DeBayer(None)
     frame.SetTitle('Raw DeBayer')
-    frame.SetSize((900, 600))
+    frame.SetSize((900, 650))
     frame.Show()
     app.MainLoop()
