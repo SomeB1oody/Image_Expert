@@ -122,77 +122,79 @@ def width_and_height(width, height, max_width, max_height):
     elif not max_: return False, 'Input cannot be greater than actual image size.'
     else: return False, 'Input should be greater than zero and cannot be greater than actual image size.'
 
-def find_corners(img):
-    img_contrast = cv2.convertScaleAbs(img, alpha = 1.8, beta = 30)
-    img_gray = cv2.cvtColor(img_contrast, cv2.COLOR_BGR2GRAY)
-    img_filter = cv2.bilateralFilter(img_gray, 13, 26, 6)
-    img_binary = cv2.threshold(img_filter, 180, 255, cv2.THRESH_BINARY_INV)
-    img_canny = cv2.Canny(img_binary, 10, 100, 3, False)
-    hough_lines = cv2.HoughLines(img_canny, 5, np.pi / 180, 100)
-    a = 50.0
-    b = np.pi / 9
-    remove_index = set()
-    sign = False
-    sign3 = True
-    while sign3:
-        new_line = []
-        # Bubble
-        for index1 in range(len(hough_lines)):
-            for index2 in range(len(hough_lines[index1])-1):
-                rho1, theta1 = hough_lines[index1]
-                rho2, theta2 = hough_lines[index2]
-                # 角度调整，确保比较的一致性
-                if theta1 > np.pi: theta1 -= np.pi
-                if theta2 > np.pi: theta2 -= np.pi
-                # 判断是否为相似直线并标记删除
-                sign1 = abs(theta1 - theta2) <= b
-                sign2 = abs(rho1 - rho2) <= a
+def correct_perspective(img):
+    # 调整对比度和亮度
+    contrast_image = cv2.convertScaleAbs(img, alpha=1.8, beta=-30)
 
-                if theta1 > np.pi / 2 > theta2 and np.pi - theta2 + theta1 < b: sign = True
-                if theta2 > np.pi / 2 > theta1 and np.pi - theta1 + theta2 < b: sign = True
+    # 将图像转换为灰度图
+    gray_image = cv2.cvtColor(contrast_image, cv2.COLOR_BGR2GRAY)
 
-                if sign and sign1 and sign2: remove_index.add(index2)
-        # 删除标记的直线
-        for index4 in range(len(hough_lines)):
-            if index4 not in remove_index: new_line.append(hough_lines[index4])
-        # 直线数量达到目标值则终止循环
-        hough_lines = np.array(new_line)
-        if len(hough_lines) == 4: sign3 = False
+    # 使用双边滤波以保留边缘并减少噪声
+    filter_image = cv2.bilateralFilter(gray_image, 13, 26, 6)
 
-    # 分别计算宽度和高度的阈值
-    width_threshold = 0.2 * img.shape[1]
-    height_threshold = 0.2 * img.shape[0]
-    points = []
+    # 使用二值化处理（阈值210，最大值255）
+    _, binary = cv2.threshold(filter_image, 210, 255, cv2.THRESH_BINARY_INV)
 
-    for index5 in range(len(new_line)):
-        for index6 in range(index5 + 1, len(new_line)):
-            rho3, theta3 = hough_lines[index5]
-            rho4, theta4 = hough_lines[index6]
+    # Canny
+    edges = cv2.Canny(binary, 100, 200)
 
-            # 调整θ值以处理斜率无穷大的情况
-            if theta3 == 0: theta3 = 0.01
-            if theta4 == 0: theta4 = 0.01
+    # 膨胀
+    kernel = np.ones((16, 16), np.uint8)
+    dilated = cv2.dilate(edges, kernel, iterations=5)
 
-            # 计算直线交点
-            a1 = np.cos(theta3)
-            a2 = np.sin(theta3)
-            b1 = np.cos(theta4)
-            b2 = np.sin(theta4)
+    # 查找轮廓
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            x = (rho4 * b1 - rho3 * b2) / (a2 * b1 - a1 * b2)
-            y = (rho3 - a1 * x) / b1
+    # 按轮廓面积从大到小排序，选择最大的轮廓
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    if len(contours) == 0:
+        raise ValueError("No outline was found in the image.")
 
-            # 保证交点在图像范围内
-            pt = (int(round(x)), int(round(y)))
+    # 将最大的轮廓逼近为多边形
+    epsilon = 0.02 * cv2.arcLength(contours[0], True)
+    approx = cv2.approxPolyDP(contours[0], epsilon, True)
 
-            # 使用不同的阈值来判断x和y是否在图像范围内
-            if -width_threshold <= pt[0] <= img.shape[1] + width_threshold and \
-                -height_threshold <= pt[1] <= img.shape[0] + height_threshold:
-                points.append(pt)
+    # 确保逼近后的多边形有 4 个点（即四边形）
+    if len(approx) != 4:
+        raise ValueError("The quadrilateral outline for perspective transformation could not be found.")
 
-    return points
+    # 获取四个角点
+    pts = approx.reshape(4, 2)
 
+    # 对角点进行排序：左上、右上、右下、左下
+    rect = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]  # 左上角
+    rect[2] = pts[np.argmax(s)]  # 右下角
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]  # 右上角
+    rect[3] = pts[np.argmax(diff)]  # 左下角
 
+    # 计算新图像的宽度和高度
+    (tl, tr, br, bl) = rect
+    widthA = np.linalg.norm(br - bl)
+    widthB = np.linalg.norm(tr - tl)
+    maxWidth = max(int(widthA), int(widthB))
+
+    heightA = np.linalg.norm(tr - br)
+    heightB = np.linalg.norm(tl - bl)
+    maxHeight = max(int(heightA), int(heightB))
+
+    # 目标图像的四个点位置（透视变换后的位置）
+    dst = np.array([
+        [0, 0],
+        [maxWidth - 1, 0],
+        [maxWidth - 1, maxHeight - 1],
+        [0, maxHeight - 1]
+    ], dtype="float32")
+
+    # 计算透视变换矩阵
+    M = cv2.getPerspectiveTransform(rect, dst)
+
+    # 应用透视变换
+    warped = cv2.warpPerspective(img, M, (maxWidth, maxHeight))
+
+    return warped, rect
 
 class RectangleTransformer(wx.Frame):
     def __init__(self, *args, **kw):
@@ -331,7 +333,7 @@ class RectangleTransformer(wx.Frame):
         # 图片输入
         img = load_img(input_path)
 
-        if manual_or_auto == 'Auto': points = find_corners(img)
+        if manual_or_auto == 'Auto': img_perspective, sorted_pts = correct_perspective(img)
         else:
             pt1_x, pt1_y = self.pt1_x.GetValue(), self.pt1_y.GetValue()
             pt2_x, pt2_y = self.pt2_x.GetValue(), self.pt2_y.GetValue()
@@ -344,19 +346,19 @@ class RectangleTransformer(wx.Frame):
                 return
 
             points = [(int(pt_values[i]) - 1, int(pt_values[i + 1]) - 1) for i in range(0, len(pt_values), 2)]
-        # 变换后图片生成
-        current = np.array(points[:4], dtype=np.float32)
-        width_, height_ = four_point_transform(current)
-        change = np.array([[0, 0], [width_, 0], [width_, height_], [0, height_]], dtype=np.float32)
-        sorted_pts = order_points(current)
-        transfer_matrix = cv2.getPerspectiveTransform(sorted_pts, change)
+            # 变换后图片生成
+            current = np.array(points[:4], dtype=np.float32)
+            width_, height_ = four_point_transform(current)
+            change = np.array([[0, 0], [width_, 0], [width_, height_], [0, height_]], dtype=np.float32)
+            sorted_pts = order_points(current)
+            transfer_matrix = cv2.getPerspectiveTransform(sorted_pts, change)
 
-        img_perspective = cv2.warpPerspective(img, transfer_matrix, (width_, height_))
+            img_perspective = cv2.warpPerspective(img, transfer_matrix, (width_, height_))
 
         # 带Mask的原图生成
         img_ = img.copy()
         for i in range(4):
-            cv2.circle(img_, points[i], 3, (0, 0, 255), -1)
+            cv2.circle(img_, sorted_pts[i], 3, (0, 0, 255), -1)
 
         cv2.polylines(img_, sorted_pts, True, (0, 0, 255), thickness=2)
 
@@ -389,7 +391,7 @@ class RectangleTransformer(wx.Frame):
         # 图片输入
         img = load_img(input_path)
 
-        if manual_or_auto == 'Auto': points = find_corners(img)
+        if manual_or_auto == 'Auto': img_perspective, sorted_pts = correct_perspective(img)
         # 手动输入
         else:
             pt1_x, pt1_y = self.pt1_x.GetValue(), self.pt1_y.GetValue()
@@ -403,16 +405,17 @@ class RectangleTransformer(wx.Frame):
                 return
 
             points = [(int(pt_values[i]) - 1, int(pt_values[i + 1]) - 1) for i in range(0, len(pt_values), 2)]
-        # 变换后图片生成
-        current = np.array(points[:4], dtype=np.float32)
-        width_, height_ = four_point_transform(current)
-        change = np.array([[0, 0], [width_, 0], [width_, height_], [0, height_]], dtype=np.float32)
-        sorted_pts = order_points(current)
-        transfer_matrix = cv2.getPerspectiveTransform(sorted_pts, change)
+            # 变换后图片生成
+            current = np.array(points[:4], dtype=np.float32)
+            width_, height_ = four_point_transform(current)
+            change = np.array([[0, 0], [width_, 0], [width_, height_], [0, height_]], dtype=np.float32)
+            sorted_pts = order_points(current)
+            transfer_matrix = cv2.getPerspectiveTransform(sorted_pts, change)
 
-        img_perspective = cv2.warpPerspective(
-        img, transfer_matrix, (img.shape[1], img.shape[0]),
-        interpolation_dict[interpolation], border_dict[border])
+            img_perspective = cv2.warpPerspective(
+                img, transfer_matrix, (img.shape[1], img.shape[0]),
+                interpolation_dict[interpolation], border_dict[border]
+            )
 
         #图片保存
         path_ = f'{output_path}{output_name}{output_format}'
