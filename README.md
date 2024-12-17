@@ -11,3 +11,5 @@ Function:
 7. Find the best matched image in a series of images
 8. Use perspective transformation of a rectangle on an image to obtain an image of this rectangle in a vertical view.
 10. Using Morphology to find specific shape(Rectange) in an image
+
+Image_Expert will no longer have update, because it has no views. Strongly recommend you to look other projects in my home page.
